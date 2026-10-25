@@ -1,0 +1,16 @@
+# 環境設定與密碼
+.env
+
+# Python 快取
+__pycache__/
+*.pyc
+
+# Pytest 快取
+.Pytest_cache/
+
+# 虛擬環境
+.venv/
+venv
+
+# 編輯器設定
+.vscode/
