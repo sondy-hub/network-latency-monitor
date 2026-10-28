@@ -1,0 +1,30 @@
+name: Python Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest    # 提供 Ubuntu Linux 執行環境
+
+    steps:
+      # 將 GitHub Repository 的程式碼取到測試環境
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 設定 Python 3.14
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      # 安裝專案需要的 Python 套件
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # 執行 Pytest，-q 表示使用較精簡的輸出格式
+      - name: Run pytest
+        run: python -m pytest -q
