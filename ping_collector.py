@@ -1,3 +1,5 @@
+import platform
+import re
 import subprocess
 import time
 from datetime import datetime
@@ -13,42 +15,66 @@ from config import PING_TARGET, HIGH_LATENCY_THRESHOLD
 
 
 # 將ping存入資料庫
+
 def save_ping(connection, time_now, ping):
     cursor = connection.cursor()
 
-    sql = """
-    INSERT INTO `ping_records` (`timestamp`, `latency_ms`)
-    VALUES (%s, %s)
-    """
+    try:
+        sql = """
+        INSERT INTO ping_records (timestamp, latency_ms)
+        VALUES (%s, %s)
+        """
 
-    values = (time_now, ping)
+        values = (time_now, ping)
+        cursor.execute(sql, values)
 
-    cursor.execute(sql,values)
-    connection.commit()
+        ping_id = cursor.lastrowid
 
-    cursor.close()
+        connection.commit()
+
+        return ping_id
+
+    finally:
+        cursor.close()
+
 
 
 
 # 取得ping
 def get_ping(ip):
-    result = subprocess.run(
-        ["ping", ip, "-n", "1"],
-        capture_output=True,            # 將執行結果收集起來
-        text = True,                    # 將收集到的輸出解碼成字串 str
-        timeout = 5
+    # 判斷當前的作業系統
+    if platform.system() == "Windows":
+        command = ["ping", "-n", "1", ip]
+    else:
+        command = ["ping", "-c", "1", ip]
+
+    try:
+        result = subprocess.run(
+            command,
+            capture_output=True,        # 將執行結果收集起來
+            text=True,                  # 將收集到的輸出解碼成字串 str
+            timeout=5
+        )
+    except (subprocess.TimeoutExpired, OSError):
+        return None
+
+    # 只解析成功的 Ping 結果
+    if result.returncode != 0:
+        return None
+
+    # 正規表達式
+    # 同時支援 Windows 中文及 Linux 英文輸出
+    match = re.search(
+        r"(?:時間|time)\s*[=<]\s*(\d+(?:\.\d+)?)\s*ms",
+        result.stdout,
+        re.IGNORECASE   # 忽略字母大小寫
     )
 
-    ping = None
+    if match:
+        return float(match.group(1))
 
-    lines = result.stdout.splitlines()
-
-    for line in lines:
-        if "時間=" in line:
-            # split()
-            ping = int(line.split("時間=")[1].split("ms")[0])
-            return ping
     return None
+
 
 
 # 取得全部歷史紀錄的統計(ping值成功率)
